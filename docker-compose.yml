@@ -1,6 +1,7 @@
 services:
   geckodriver:
     image: instrumentisto/geckodriver
-    command: "--host=0.0.0.0 --binary=/opt/firefox/firefox"
-    ports:
-      - 4444:4444
+    command: "--host=geckodriver --binary=/opt/firefox/firefox"
+
+  bot:
+    image: ghcr.io/mathisburger/badminton_bot:latest

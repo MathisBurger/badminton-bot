@@ -9,7 +9,7 @@ pub async fn perform_booking(
     username: &str,
     password: &str,
 ) -> Result<(), CmdError> {
-    let mut client = Client::new("http://127.0.0.1:4444").await.unwrap();
+    let mut client = Client::new("http://geckodriver:4444").await.unwrap();
     open_booking_page(&mut client, booking_id).await?;
     select_date_and_open_credentials_field(&mut client).await?;
     enter_credentials(&mut client, username, password).await?;

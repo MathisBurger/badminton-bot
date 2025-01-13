@@ -19,8 +19,8 @@ async fn main() {
     loop {
         let (ttw, booking_day) = get_next(&config);
         let msg: String = format!(
-            "Next booking is scheduled in {} secs for {} users. ({}) ",
-            ttw,
+            "Next booking is scheduled in {} hours for {} users. ({}) ",
+            ttw / 3600,
             credentials.len(),
             booking_day.week_day
         );
@@ -72,7 +72,9 @@ fn get_next_weekday(
     sorted: &Vec<BookingDay>,
 ) -> BookingDay {
     for element in sorted {
-        if conv_wd_to_u8(current) <= conv_wd_to_u8(element.week_day) && current_time < element.time
+        if (conv_wd_to_u8(current) <= conv_wd_to_u8(element.week_day)
+            && current_time < element.time)
+            || conv_wd_to_u8(current) < conv_wd_to_u8(element.week_day)
         {
             return element.clone();
         }
