@@ -34,21 +34,19 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     && apt-get clean
 
-# Install Firefox (Headless)
-RUN wget -q https://ftp.mozilla.org/pub/firefox/releases/latest/linux-x86_64/en-US/firefox-*.tar.bz2 && \
-    tar -xjf firefox-*.tar.bz2 && \
+RUN FIREFOX_VERSION="111.0" && \
+    wget -q "https://ftp.mozilla.org/pub/firefox/releases/${FIREFOX_VERSION}/linux-x86_64/en-US/firefox-${FIREFOX_VERSION}.tar.bz2" && \
+    tar -xjf "firefox-${FIREFOX_VERSION}.tar.bz2" && \
     mv firefox /opt/firefox && \
     ln -s /opt/firefox/firefox /usr/local/bin/firefox && \
-    rm firefox-*.tar.bz2
+    rm "firefox-${FIREFOX_VERSION}.tar.bz2"
 
-# Install Geckodriver
-RUN FIREFOX_VERSION=$(firefox --version | awk '{print $3}') && \
-    GECKODRIVER_VERSION=$(curl -s https://github.com/mozilla/geckodriver/releases/latest | \
-    grep -oP 'tag/v\K([0-9.]+)' | head -n 1) && \
-    wget -q https://github.com/mozilla/geckodriver/releases/download/v$GECKODRIVER_VERSION/geckodriver-v$GECKODRIVER_VERSION-linux64.tar.gz && \
-    tar -xvzf geckodriver-v$GECKODRIVER_VERSION-linux64.tar.gz && \
+# Install Geckodriver - Download the compatible version for Firefox
+RUN GECKODRIVER_VERSION=$(curl -s https://github.com/mozilla/geckodriver/releases/latest | grep -oP 'tag/v\K([0-9.]+)' | head -n 1) && \
+    wget -q "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" && \
+    tar -xvzf "geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" && \
     mv geckodriver /usr/local/bin/ && \
-    rm geckodriver-v$GECKODRIVER_VERSION-linux64.tar.gz
+    rm "geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz"
 
 # Use Busybox for basic utilities
 COPY --from=busybox:1.35.0-uclibc /bin/sh /bin/sh
