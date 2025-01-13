@@ -1,0 +1,6 @@
+services:
+  geckodriver:
+    image: instrumentisto/geckodriver
+    command: "--host=0.0.0.0 --binary=/opt/firefox/firefox"
+    ports:
+      - 4444:4444

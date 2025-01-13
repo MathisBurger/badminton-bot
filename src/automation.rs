@@ -1,3 +1,6 @@
+use std::thread;
+use std::time::Duration;
+
 use fantoccini::error::CmdError;
 use fantoccini::{Client, Locator};
 
@@ -6,11 +9,12 @@ pub async fn perform_booking(
     username: &str,
     password: &str,
 ) -> Result<(), CmdError> {
-    let mut client = Client::new("http://localhost:4444").await.unwrap();
+    let mut client = Client::new("http://127.0.0.1:4444").await.unwrap();
     open_booking_page(&mut client, booking_id).await?;
     select_date_and_open_credentials_field(&mut client).await?;
     enter_credentials(&mut client, username, password).await?;
-    //submit_login(&mut client).await?;
+    submit_login(&mut client).await?;
+
     client.close().await?;
 
     Ok(())
@@ -103,6 +107,13 @@ async fn submit_login(client: &mut Client) -> Result<(), fantoccini::error::CmdE
 
     let complete_booking_button = client.find(Locator::XPath("//*[@id='bs_submit']")).await?;
     complete_booking_button.click().await?;
+
+    let final_complete = client
+        .find(Locator::XPath(
+            "/html/body/form/div/div[3]/div[1]/div[2]/input",
+        ))
+        .await?;
+    final_complete.click().await?;
 
     Ok(())
 }
