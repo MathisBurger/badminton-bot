@@ -1,30 +1,89 @@
-use fantoccini::{Client, Locator};
+use chrono::{Datelike, Duration, NaiveDateTime, NaiveTime, Utc, Weekday};
+use chrono_tz::Europe::Berlin;
+use config::{BookingDay, Configuration};
+use log::info;
+use std::{thread, time::Duration as StdDuration};
 use tokio;
 
+mod automation;
+mod config;
+
 #[tokio::main]
-async fn main() -> Result<(), fantoccini::error::CmdError> {
-    let booking_id = "K040-3";
+async fn main() {
+    let config = Configuration::parse().expect("Cannot load config");
+    let log_level = std::env::var("RUST_LOG").unwrap_or_else(|_e| "info".to_string());
 
-    // Verbindet sich mit einem laufenden WebDriver (z. B. geckodriver für Firefox)
-    let mut client = Client::new("http://localhost:4444").await.unwrap();
+    std::env::set_var("RUST_LOG", log_level);
+    pretty_env_logger::init();
+    let credentials = config.credentials.clone();
+    loop {
+        let (ttw, booking_day) = get_next(&config);
+        let msg: String = format!(
+            "Next booking is scheduled in {} secs for {} users. ({}) ",
+            ttw,
+            credentials.len(),
+            booking_day.week_day
+        );
+        info!(target: "scheduler", "{}", msg);
+        thread::sleep(StdDuration::from_secs(ttw));
+        for creds in credentials.clone() {
+            info!(target: "booking", "Booking {} for user {}", booking_day.booking_id, creds.username);
+            automation::perform_booking(
+                booking_day.booking_id.as_str(),
+                creds.username.as_str(),
+                creds.password.as_str(),
+            )
+            .await
+            .expect("Cannot create booking for user");
+        }
+    }
+}
 
-    // Gehe zu einer Website
-    client
-        .goto("https://www.buchsys.de/eichstaett-ingolstadt/angebote/aktueller_zeitraum/_Badminton_ING.html")
-        .await.expect("Cannot open website");
+fn get_next(config: &Configuration) -> (u64, BookingDay) {
+    let mut sorted = config.booking_days.clone();
+    sorted.sort_by(|a, b| conv_wd_to_u8(a.week_day).cmp(&conv_wd_to_u8(b.week_day)));
+    let current_date = Utc::now();
+    let berlin_date = current_date.with_timezone(&Berlin);
+    let next_booking_day = get_next_weekday(berlin_date.weekday(), berlin_date.time(), &sorted);
+    let next_date = get_next_date(&next_booking_day);
+    (
+        next_date
+            .signed_duration_since(berlin_date.naive_utc())
+            .num_seconds() as u64,
+        next_booking_day,
+    )
+}
 
-    client
-        .find(Locator::XPath(
-            format!("//*[@id='{}']", booking_id).as_str(),
-        ))
-        .await?
-        .click()
-        .await?;
+fn conv_wd_to_u8(weekday: Weekday) -> u8 {
+    match weekday {
+        Weekday::Mon => 0,
+        Weekday::Tue => 1,
+        Weekday::Wed => 2,
+        Weekday::Thu => 3,
+        Weekday::Fri => 4,
+        Weekday::Sat => 5,
+        Weekday::Sun => 6,
+    }
+}
 
-    // Warte einige Sekunden, damit die Ergebnisse geladen werden
-    tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+fn get_next_weekday(
+    current: Weekday,
+    current_time: NaiveTime,
+    sorted: &Vec<BookingDay>,
+) -> BookingDay {
+    for element in sorted {
+        if conv_wd_to_u8(current) <= conv_wd_to_u8(element.week_day) && current_time < element.time
+        {
+            return element.clone();
+        }
+    }
+    sorted.first().unwrap().clone()
+}
 
-    // Schließe den Browser
-    client.close().await?;
-    Ok(())
+fn get_next_date(day: &BookingDay) -> NaiveDateTime {
+    let mut now = Utc::now().date_naive();
+    while now.weekday() != day.week_day {
+        now = now + Duration::days(1);
+    }
+    now.and_time(day.time)
 }
