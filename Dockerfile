@@ -15,6 +15,8 @@ FROM busybox:1.35.0-uclibc as busybox
 FROM gcr.io/distroless/cc-debian12
 ARG ARCH=x86_64
 
+COPY --from=busybox /bin/sh /bin/sh
+
 # Install dependencies for Firefox, Geckodriver, and necessary tools
 RUN apt-get update && apt-get install -y \
     wget \
