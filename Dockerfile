@@ -1,45 +1,30 @@
-FROM rust:latest AS build
-RUN USER=root cargo new --bin badminton_bot
-WORKDIR ./badminton_bot
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./Cargo.toml ./Cargo.toml
-RUN cargo build --release
-RUN rm src/*.rs
+# -------- Stage 1: Install dependencies and build the app --------
+FROM oven/bun:1.1.12 AS builder
 
-COPY . .
-RUN rm ./target/release/deps/badminton_bot*
-RUN cargo build --release
-
-FROM busybox:1.35.0-uclibc as busybox
-
-FROM gcr.io/distroless/cc-debian12
-ARG ARCH=x86_64
-
-COPY --from=busybox:1.35.0-uclibc /bin/sh /bin/sh
-
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libpq.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libgssapi_krb5.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libldap_r-2.4.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libkrb5.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libk5crypto.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libkrb5support.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/liblber-2.4.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libsasl2.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libgnutls.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libp11-kit.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libidn2.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libunistring.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libtasn1.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libnettle.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libhogweed.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libgmp.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /usr/lib/${ARCH}-linux-gnu/libffi.so* /usr/lib/${ARCH}-linux-gnu/
-COPY --from=build /lib/${ARCH}-linux-gnu/libcom_err.so* /lib/${ARCH}-linux-gnu/
-COPY --from=build /lib/${ARCH}-linux-gnu/libkeyutils.so* /lib/${ARCH}-linux-gnu/
-COPY --from=build /lib/${ARCH}-linux-gnu/libldap* /lib/${ARCH}-linux-gnu/
-COPY --from=build /lib/${ARCH}-linux-gnu/liblber* /lib/${ARCH}-linux-gnu/
-
-
+# Set working directory
 WORKDIR /app
-COPY --from=build /badminton_bot/target/release/badminton_bot /app/badminton_bot
-CMD ./badminton_bot
+
+# Copy bun config and dependencies
+COPY bun.lockb package.json tsconfig.json ./
+
+# Install deps (cached layer if no changes)
+RUN bun install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# -------- Stage 2: Final image with Playwright --------
+FROM mcr.microsoft.com/playwright:v1.44.0-jammy
+
+# Set working directory
+WORKDIR /app
+
+# Copy built app and node_modules from builder
+COPY --from=builder /app /app
+
+# Install Bun in the Playwright base image
+RUN curl -fsSL https://bun.sh/install | bash && \
+    ln -s /root/.bun/bin/bun /usr/local/bin/bun
+
+# Default command
+CMD ["bun", "run", "index.ts"]

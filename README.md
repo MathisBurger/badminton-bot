@@ -1,4 +1,4 @@
-# Badminto Bot
+# Badminton Bot
 
 This is a simple web automation app that allows you to automatically register for your university's badminton courses. By providing your university credentials (username, password) and the course ID, the app will periodically attempt to register you for the selected course.
 
