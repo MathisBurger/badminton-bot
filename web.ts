@@ -15,6 +15,13 @@ export const register = async (browser: Browser, kursId: number, email: string, 
         await page.reload();
     }
 
+    const evaluation = await locator.evaluate((el) => el.classList.contains("bs_btn_warteliste"))
+
+    if (evaluation) {
+        console.log("Course is already full!");
+        return;
+    }
+
     // Navigate to specific course
     await page.click(courseElementSelector);
 
