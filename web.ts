@@ -65,4 +65,6 @@ export const register = async (browser: Browser, kursId: number, email: string, 
     for (const page of pages) {
         await page.close();
     }
+
+    console.log("Course booked successfully!");
 }
