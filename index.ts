@@ -13,7 +13,7 @@ for (const course of config.courses) {
 
     nodeCron.schedule(course.cron, async () => {
 
-        const browser = await chromium.launch({ headless: false });
+        const browser = await chromium.launch({ headless: true });
         console.log(`Booking course with ID ${course.courseId}`);
 
         for (const account of config.accounts) {
